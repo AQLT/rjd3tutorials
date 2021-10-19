@@ -1,0 +1,20 @@
+Package: tutorialjd3
+Type: Package
+Title: Tutorials For JDemetra+
+Version: 0.1.0
+Author: Who wrote it
+Maintainer: The package maintainer <yourself@somewhere.net>
+Description: More about what it does (maybe more than one line)
+    Use four spaces when indenting paragraphs within the Description.
+Depends:
+  R (>= 3.6),
+  rjd3toolkit (>= 0.1.0),
+  rjd3modelling  (>= 0.1.0)
+Imports:
+  rJava (>= 0.9-8),
+    RProtoBuf (>= 0.4.17),
+    learnr
+License: What license is it under?
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.1.2

@@ -1,0 +1,190 @@
+---
+title: "Create trading days regressors"
+output: 
+  learnr::tutorial:
+    toc_depth: 2
+runtime: shiny_prerendered
+description: >
+  Learn how to create trading days regressors with a user-defined calendar.
+---
+
+```{r setup, include=FALSE}
+library(learnr)
+library(rjd3modelling)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+> L'objectif de ce TP est d'apprendre à créer des régresseurs jours ouvrables personnalisés, à les utiliser dans RJDemetra/JDemetra+ et à vérifier la qualité de la correction.
+
+## Introduction 
+Pour créer des régresseurs jours ouvrables personnalisés, deux solutions :
+
+1. Le faire depuis JDemetra+, en créant un calendrier personnalisé puis en exportant les régresseurs. Voir par exemple la documentation de JDemetra+ [ici](https://jdemetradocumentation.github.io/JDemetra-documentation/pages/case-studies/calendars-main.html) et [là](https://jdemetradocumentation.github.io/JDemetra-documentation/pages/case-studies/calendars-national.html).
+
+2. Créer le calendrier depuis R à l'aide du package [`rjd3modelling`](https://github.com/palatej/rjd3modelling) (qui dépend de [`rjd3toolkit`](https://github.com/palatej/rjd3toolkit)). Ces packages ne sont pas sur le CRAN, pour les installer on peut par exemple utiliser la fonction `remotes::install_github()` :
+```{r, eval=FALSE}
+remotes::install_github("palatej/rjd3toolkit",
+                 INSTALL_opts = "--no-multiarch")
+remotes::install_github("palatej/rjd3modelling",
+                 INSTALL_opts = "--no-multiarch")
+remotes::install_github("palatej/rjd3sa",
+                 INSTALL_opts = "--no-multiarch")
+```
+
+Dans ce TP, nous nous intéresserons uniquement à la seconde option. 
+En effet, le package R est plus flexible et permet de créer des régresseurs moins classiques que les *working days* et *trading days*. Nous utiliserons également le package `rjd3sa` pour faire des tests de jours ouvrables résiduels.
+
+Cet énoncé a été préparé avec la version `r packageVersion('rjd3toolkit')` des packages  `rjd3toolkit`, `rjd3modelling` et `rjd3sa`: dans les nouvelles versions, les noms des fonctions peuvent être différents. Pour installer cette version, vous pouvez utiliser le code suivante :
+
+```{r, include = FALSE}
+v_package <- packageVersion('rjd3toolkit')
+install_packages <- sprintf("remotes::install_github(\"palatej/%s@v%s\")",
+                            c("rjd3toolkit", "rjd3modelling", "rjd3sa"),
+                            v_package)
+install_packages <- paste(install_packages, collapse = "\n")
+```
+
+```{r, eval=FALSE, code = install_packages}
+```
+
+
+## Création d'un calendrier 
+
+Par défaut, les régresseurs jours ouvrables de JDemetra+ ne prennent pas en compte les spécificité calendaires des pays : on ne prend pas en compte les jours fériés. 
+Pour les prendre en compte, il faut créer son propre calendrier où l'on supposera qu'un jour férié de plus dans le mois a le même effet qu'un dimanche.
+
+Un nouveau calendrier avec la fonction `calendar.new()`
+```{r}
+library(rjd3modelling)
+frenchCalendar <- calendar.new()
+```
+Trois fonctions peuvent être utilisées pour ajouter des jours fériés :
+
+1. `calendar.fixedday()` pour ajouter un jour férié qui tombe à date fixe. Par exemple, pour ajouter le 8 mai :
+
+```{r}
+calendar.fixedday(frenchCalendar, month =  5,
+                  day = 8)
+```
+
+2. `calendar.easter()` pour ajouter un jour férié dont le jour dépend de Pâques : le paramètre `offset` permet de spécifier le nombre de jours avant (si négatif) ou après Pâques (si positif). Par exemple, pour ajouter la Pentecôte qui a lieu 60 jours après Pâques :
+
+```{r}
+calendar.easter(frenchCalendar,
+                offset = 60)
+```
+
+3. `calendar.holiday()` qui permet d'ajouter des jours fériés par rapport à des dates déjà connues dans JDemetra+ (voir tableau ci-dessous). Comme pour la fonction `calendar.easter()`, le paramètre `offset` permet de spécifier la position du jour voulu par rapport rapport à la fête pré-spécifié (par défaut `offset = 0`, le jour férié coïncide avec le jour pré-spécifié). Par exemple, pour ajouter le nouvel an :
+
+```{r}
+calendar.holiday(frenchCalendar, "NEWYEAR")
+```
+
+Créer un calendrier qui contient tous les jours fériés de la France :
+
+```{r frenchcalendar, exercise = TRUE}
+frenchCalendar <- calendar.new()
+```
+
+```{r frenchcalendar-solution}
+frenchCalendar <- calendar.new()
+calendar.holiday(frenchCalendar, "NEWYEAR")
+calendar.holiday(frenchCalendar, "EASTERMONDAY") # Lundi de Pâques
+calendar.holiday(frenchCalendar, "MAYDAY") # 1er mai
+calendar.fixedday(frenchCalendar, 5, 8)
+calendar.holiday(frenchCalendar, "WHITMONDAY") # Lundi de Pentecôte
+calendar.fixedday(frenchCalendar, 7, 14)
+calendar.holiday(frenchCalendar, "ASSUMPTION") # Assomption
+calendar.holiday(frenchCalendar, "ALLSAINTDAY") # Toussaint
+calendar.holiday(frenchCalendar, "ARMISTICE")
+```
+
+
+
+## Création de régresseurs JO
+
+Le modèle général de correction de jours ouvrables peut s'écrire de la façon suivante :
+$$
+X_t = \sum_{i=1}^{7} \alpha_i N_{it} + \varepsilon_t
+$$
+Avec : 
+
+- $N_{it}$ le nombre de jours de lundis ($i=1$), ..., dimanches et jours fériés ($i=7$)
+
+- $\alpha_i$ l'effet d'un jour de type $i$
+
+Pour éviter les problèmes de multi-colinéarité, on réécrit le modèle en utilisant une modalité de référence (ici dimanche). On désaisonnalise également les régresseurs en enlevant la moyenne de long-terme :
+$$X_t =  \sum_{i=1}^{6} \beta_i (N_{it} - N_{7t}) + 
+\bar{\alpha} \underbrace{(N_t - \bar{N}_t)}_{LY_t} +  \varepsilon_t$$
+Ce modèle peut être simplifié si en faisant des hypothèses sur les effets des jours ouvrés :
+
+- L'hypothèse *working days* correspond au cas où l'on suppose que tous les jours de la semaine (lundi à vendredi) ont le même effet ($\alpha_1=\dots=\alpha_5$), les samedis et les dimanches (et jours fériés) ont le même effet ($\alpha_6=\alpha_7$) et sont utilisés en tant que variable de contraste.
+
+- L'hypothèse *trading days* correspond au cas où l'on suppose que tous les jours ont un effet différent et les dimanches (et jours fériés) sont utilisés en tant que variable de constrate.
+
+Sous JDemetra+ on ne peut utiliser que ces deux hypothèses mais `rjd3modelling` permet de construire d'autres types de J0.
+
+
+De manière plus générale, lorsque l'on utilise une variable de contraste, les régresseurs $CJO_{t,i}$ associé au groupe $i$ est calculé de la façon suivante :
+$$
+CJO_{t,i} = \underbrace{\sum_{j\in\text{groupe }i}N_{jt}}_{
+\text{nb de jours du groupe }i
+} - 
+\frac{\sum_{j\in\text{groupe }i}1}{\sum_{j\in\text{groupe }0}1}
+\times
+\underbrace{\sum_{j\in\text{groupe }0}N_{jt}}_{
+\text{nb de jours du groupe contraste}
+}
+$$
+Dans le cas *working days*, il y a 2 jours dans le groupe contraste (samedi et dimanche, $\sum_{j\in\text{groupe }0}1=2$) et 5 jours dans le groupe 1 (lundi à vendredi, $\sum_{j\in\text{groupe }1}1=5$). Au mois $t$, le régresseurs JO type de jours est donc égal au nombre de jours de la semaine dans le mois, mois $5/2\times$ nombre de jours de week-end.
+
+
+Les régresseurs J0 peuvent être créés à partir de 2 fonctions : `htd()` qui permet de les créer à partir d'un calendrier spécifique et `td()`. Dans ces fonctions, le paramètre le plus important est `groups` pour permet de faire des hypothèses sur les jours. C'est un vecteur de longueur 7 (le nombre de jours de la semaine) dont chaque élément indique à quel groupe le jour de la semaine associé correspond. La variable de contraste est associé au groupe 0.  
+Par exemple, `groups = c(1,2,3,4,5,6,0)` correspond au *trading days* et `groups = c(1,1,1,1,1,0,0)` correspond au *working days*.
+
+Par exemple :
+
+```{r}
+groups <- c(1, 2, 3, 4, 5, 6, 0)
+frequency <- 12
+start <- c(2000,1)
+wkd <- htd(frenchCalendar, frequency = frequency, start = start, length = 12*35,
+         groups = groups)
+wkd <- ts(wkd, start = start, frequency = frequency)
+```
+
+
+Comparer le régresseurs JO *working days* créé avec le calendrier français et celui sans hypothèse sur les jours fériés (fonction `td()`).
+
+
+```{r regressors, exercise = TRUE}
+frenchCalendar <- calendar.new()
+```
+
+```{r regressors-hint}
+# define Saturday and Sunday as contrast
+groups <- c(1, 1, 1, 1, 1, 0, 0)
+# Compare with td() function
+wkd_def <- td(frequency = frequency, start = start, length = 12*35,
+         groups = groups)
+```
+
+```{r regressors-solution}
+groups <- c(1, 1, 1, 1, 1, 0, 0)
+frequency <- 12
+start <- c(2000,1)
+wkd <- htd(frenchCalendar, frequency = frequency, start = start, length = 12*35,
+         groups = groups)
+wkd <- ts(wkd, start = start, frequency = frequency)
+wkd_def <- td(frequency = frequency, start = start, length = 12*35,
+         groups = groups)
+wkd_def <- ts(wkd_def, start = start, frequency = frequency)
+data <- ts.union(wkd, wkd_def)
+plot(data, col = c("orange","black"),
+     plot.type = "single")
+```
+
+```{r, solution = TRUE}
+
+```
