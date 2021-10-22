@@ -1,11 +1,11 @@
-Package: tutorialjd3
+Package: rjd3tutorials
 Type: Package
-Title: Tutorials For JDemetra+
+Title: Tutorials For RJDemetra
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
+Authors@R: c(person("Alain", "Quartier-la-Tente", role = c("aut", "cre"),
+                 email = "alain.quartier@yahoo.fr",
+                 comment = c(ORCID = "0000-0001-7890-3857")))
+Description: Provides tutorials around JDemetra+ 3.0 R interfaces.
 Depends:
   R (>= 3.6),
   rjd3toolkit (>= 0.1.0),
@@ -14,7 +14,8 @@ Imports:
   rJava (>= 0.9-8),
     RProtoBuf (>= 0.4.17),
     learnr
-License: What license is it under?
+SystemRequirements: Java SE 8 or higher
+License: EUPL
 Encoding: UTF-8
-LazyData: true
+LazyData: false
 RoxygenNote: 7.1.2
