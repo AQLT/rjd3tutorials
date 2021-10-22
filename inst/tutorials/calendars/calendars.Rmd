@@ -23,9 +23,9 @@ There are two solutions to create custom working day regressors:
 2. Create the calendar from R using the package [`rjd3modelling`](https://github.com/palatej/rjd3modelling) (which depends on [`rjd3toolkit`](https://github.com/palatej / rjd3toolkit)). These packages are not on the CRAN, to install them we can for example use the function `remotes::install_github ()`:
 ```{r, eval=FALSE}
 remotes::install_github("palatej/rjd3toolkit",
-                 INSTALL_opts = "--no-multiarch")
+                        INSTALL_opts = "--no-multiarch")
 remotes::install_github("palatej/rjd3modelling",
-                 INSTALL_opts = "--no-multiarch")
+                        INSTALL_opts = "--no-multiarch")
 ```
 
 In this tutorial, we will only focus on the second option.
@@ -80,20 +80,20 @@ calendar.holiday(frenchCalendar, "NEWYEAR")
 ```{r, prespecifieholidays, echo=FALSE}
 library(kableExtra)
 holidays <- data.frame(Event = c("NEWYEAR", "SHROVEMONDAY", "SHROVETUESDAY", 
-"ASHWEDNESDAY", "MAUNDYTHURSDAY", "GOODFRIDAY", "EASTER", "EASTERMONDAY", 
-"ASCENSION", "PENTECOST", "WHITMONDAY", "CORPUSCHRISTI", "JULIANEASTER", 
-"MAYDAY", "ASSUMPTION", "HALLOWEEN", "ALLSAINTDAY", "ARMISTICE", 
-"CHRISTMAS"), Definition = c("Fixed holiday, falls on January, 1.", "Moving holiday, falls on Monday before Ash Wednesday (48 days before Easter Sunday).", 
-"Moving holiday, falls on Tuesday before Ash Wednesday (47 days before Easter Sunday).", 
-"Moving holiday, occurring 46 days before Easter Sunday.", "Moving holiday, falls on the Thursday before Easter.", 
-"Moving holiday, falls on the Friday before Easter.", "Moving holiday, varies between March, 22 and April, 25.", 
-"Moving holiday, falls on the day after Easter.", "Moving holiday, celebrated on Thursday, 39 days after Easter.", 
-"Moving holiday, celebrated 49 days after Easter Sunday.", "Moving holiday, falling on the day after Pentecost.", 
-"Moving holiday, celebrated 60 days after Easter Sunday.", "", 
-"Fixed holiday, falls on May, 1.", "Fixed holiday, falls on August, 15.", 
-"Fixed holiday, falls on October, 31.", "Fixed holiday, falls on November, 1.", 
-"Fixed holiday, falls on November, 11.", "Fixed holiday, falls on December, 25."
-))
+                                 "ASHWEDNESDAY", "MAUNDYTHURSDAY", "GOODFRIDAY", "EASTER", "EASTERMONDAY", 
+                                 "ASCENSION", "PENTECOST", "WHITMONDAY", "CORPUSCHRISTI", "JULIANEASTER", 
+                                 "MAYDAY", "ASSUMPTION", "HALLOWEEN", "ALLSAINTDAY", "ARMISTICE", 
+                                 "CHRISTMAS"), Definition = c("Fixed holiday, falls on January, 1.", "Moving holiday, falls on Monday before Ash Wednesday (48 days before Easter Sunday).", 
+                                                              "Moving holiday, falls on Tuesday before Ash Wednesday (47 days before Easter Sunday).", 
+                                                              "Moving holiday, occurring 46 days before Easter Sunday.", "Moving holiday, falls on the Thursday before Easter.", 
+                                                              "Moving holiday, falls on the Friday before Easter.", "Moving holiday, varies between March, 22 and April, 25.", 
+                                                              "Moving holiday, falls on the day after Easter.", "Moving holiday, celebrated on Thursday, 39 days after Easter.", 
+                                                              "Moving holiday, celebrated 49 days after Easter Sunday.", "Moving holiday, falling on the day after Pentecost.", 
+                                                              "Moving holiday, celebrated 60 days after Easter Sunday.", "", 
+                                                              "Fixed holiday, falls on May, 1.", "Fixed holiday, falls on August, 15.", 
+                                                              "Fixed holiday, falls on October, 31.", "Fixed holiday, falls on November, 1.", 
+                                                              "Fixed holiday, falls on November, 11.", "Fixed holiday, falls on December, 25."
+                                 ))
 kbl(holidays,booktabs = TRUE,caption = "Pre-specified holidays",row.names = FALSE) %>%
   kable_paper("hover", full_width = F)
 ```
@@ -172,35 +172,43 @@ groups <- c(1, 2, 3, 4, 5, 6, 0)
 frequency <- 12
 start <- c(2000,1)
 wkd <- htd(frenchCalendar, frequency = frequency, start = start, length = 12*35,
-         groups = groups)
+           groups = groups)
 wkd <- ts(wkd, start = start, frequency = frequency)
 ```
 
 
 Compare the  *working days* regressors created with the French calendar to the one without assumption on public holidays (`td()` function).
 
-```{r regressors, exercise = TRUE}
-frenchCalendar <- calendar.new()
+```{r regressors, exercise = TRUE, exercise.blanks = "___+", exercise.setup = "frenchcalendar-solution"}
+frequency <- ___
+start <- c(2000,1)
+length <- frequency*5
+# define Saturday and Sunday as contrast
+groups <- c(____)
+# Compare with td() function
+wkd <- htd(frenchCalendar, frequency = frequency, start = start, 
+           length = length,
+           groups = groups)
+wkd_def <- td(frequency = frequency, start = start,
+              length = length,
+              groups = groups)
+data <- ts.union(wkd, wkd_def)
+plot(data, col = c("orange","black"),
+     plot.type = "single")
 ```
 
-```{r regressors-hint}
-# define Saturday and Sunday as contrast
-groups <- c(1, 1, 1, 1, 1, 0, 0)
-# Compare with td() function
-wkd_def <- td(frequency = frequency, start = start, length = 12*35,
-         groups = groups)
-```
 
 ```{r regressors-solution}
-groups <- c(1, 1, 1, 1, 1, 0, 0)
 frequency <- 12
 start <- c(2000,1)
-wkd <- htd(frenchCalendar, frequency = frequency, start = start, length = 12*35,
-         groups = groups)
-wkd <- ts(wkd, start = start, frequency = frequency)
-wkd_def <- td(frequency = frequency, start = start, length = 12*35,
-         groups = groups)
-wkd_def <- ts(wkd_def, start = start, frequency = frequency)
+length <- frequency*5
+groups <- c(1, 1, 1, 1, 1, 0, 0)
+wkd <- htd(frenchCalendar, frequency = frequency, start = start, 
+           length = length,
+           groups = groups)
+wkd_def <- td(frequency = frequency, start = start,
+              length = length,
+              groups = groups)
 data <- ts.union(wkd, wkd_def)
 plot(data, col = c("orange","black"),
      plot.type = "single")
@@ -210,10 +218,10 @@ plot(data, col = c("orange","black"),
 
 ```{r easter-find, echo=FALSE}
 question("Use the function `easter.dates()` to find the date of Easter in 1935",
-  answer("April 12", message = "Nope, April 12 was Easter in 1936!"),
-  answer("March 31"),
-  answer("April 21", correct = TRUE),
-  answer("April 15")
+         answer("April 12", message = "Nope, April 12 was Easter in 1936!"),
+         answer("March 31"),
+         answer("April 21", correct = TRUE),
+         answer("April 15")
 )
 ```
 
