@@ -1,14 +1,14 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-# tutorialjd3
+# rjd3tutorials
 
 ## Installation
 
 ``` r
 remotes::install_github("palatej/rjd3toolkit")
 remotes::install_github("palatej/rjd3modelling")
-remotes::install_github("AQLT/tutorialjd3")
+remotes::install_github("AQLT/rjd3tutorials")
 
-learnr::run_tutorial("calendars", "tutorialjd3")
+learnr::run_tutorial("calendars", "rjd3tutorials")
 ```
